@@ -5,6 +5,10 @@ global type pfc_w_frame from w_master
 end type
 type mdi_1 from mdiclient within pfc_w_frame
 end type
+type mditbb_1 from tabbedbar within pfc_w_frame
+end type
+type mdirbb_1 from ribbonbar within pfc_w_frame
+end type
 end forward
 
 global type pfc_w_frame from w_master
@@ -21,6 +25,8 @@ event type integer pfc_minimizeall ( )
 event type integer pfc_undoarrange ( )
 event type integer pfc_layer ( )
 mdi_1 mdi_1
+mditbb_1 mditbb_1
+mdirbb_1 mdirbb_1
 end type
 global pfc_w_frame pfc_w_frame
 
@@ -33,6 +39,7 @@ end variables
 forward prototypes
 public function integer of_setsheetmanager (boolean ab_switch)
 public function integer of_setstatusbar (boolean ab_switch)
+public function integer of_layoutclient ()
 end prototypes
 
 event pfc_toolbars;call w_master::pfc_toolbars;//////////////////////////////////////////////////////////////////////////////
@@ -613,6 +620,93 @@ end if
 Return 0
 end function
 
+public function integer of_layoutclient ();//////////////////////////////////////////////////////////////////////////////
+//
+//	Function:  of_LayoutClient
+//
+//	Access:  public
+//
+//	Arguments:  none
+//
+//	Returns:  integer
+//	 1 = the client area was laid out around a ribbon bar
+//	 0 = nothing to do (no ribbon bar on the frame, or the frame is minimized)
+//
+//	Description:  Places a ribbon bar on the frame across the top of the work area
+//		and fits the MDI client area between it and the MicroHelp bar.  A frame with
+//		controls other than the MDI client does not size the client area itself.
+//		Called from the resize event, and by u_rbb when one of its of_Set functions
+//		changes the ribbon bar's content.  Call it after changing the height of the
+//		ribbon bar in any other way.  Frames without a ribbon bar are left alone.
+//
+//////////////////////////////////////////////////////////////////////////////
+//
+//	Revision History
+//
+//	Version
+//	2025	Initial version
+//
+//////////////////////////////////////////////////////////////////////////////
+//
+/*
+ * Open Source PowerBuilder Foundation Class Libraries
+ *
+ * Copyright (c) 2004-2017, All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted in accordance with the MIT License
+
+ *
+ * https://opensource.org/licenses/MIT
+ *
+ * ====================================================================
+ *
+ * This software consists of voluntary contributions made by many
+ * individuals and was originally based on software copyright (c)
+ * 1996-2004 Sybase, Inc. http://www.sybase.com.  For more
+ * information on the Open Source PowerBuilder Foundation Class
+ * Libraries see https://github.com/OpenSourcePFCLibraries
+*/
+//
+//////////////////////////////////////////////////////////////////////////////
+
+integer		li_cnt, li_count
+integer		li_width, li_height, li_ribbonheight
+ribbonbar	lrbb_ribbon
+
+If this.WindowState = Minimized! Then Return 0
+
+// Find the ribbon bar
+li_count = UpperBound (this.Control)
+For li_cnt = 1 To li_count
+	If this.Control[li_cnt].TypeOf() = RibbonBar! Then
+		lrbb_ribbon = this.Control[li_cnt]
+		Exit
+	End If
+Next
+If Not IsValid (lrbb_ribbon) Then Return 0
+
+li_width = this.WorkSpaceWidth()
+li_height = this.WorkSpaceHeight()
+If lrbb_ribbon.Visible Then li_ribbonheight = lrbb_ribbon.Height
+
+// The ribbon bar spans the top of the work area.  It collapses its groups
+// when the frame is narrower than its content, so only its width is set.
+lrbb_ribbon.Move (this.WorkSpaceX(), this.WorkSpaceY())
+lrbb_ribbon.Width = li_width
+
+// The client area takes the rest, less the MicroHelp bar
+// (see "Sizing the client area" in Application Techniques)
+li_height = li_height - (lrbb_ribbon.Y + li_ribbonheight)
+li_height = li_height - mdi_1.MicroHelpHeight
+li_height = li_height + this.WorkSpaceY()
+
+mdi_1.Move (this.WorkSpaceX(), lrbb_ribbon.Y + li_ribbonheight)
+mdi_1.Resize (li_width, li_height)
+
+Return 1
+end function
+
 event move;call super::move;//////////////////////////////////////////////////////////////////////////////
 //
 //	Event:  move	
@@ -705,29 +799,37 @@ int iCurrent
 call w_master::create
 if this.MenuName = "m_frame" then this.MenuID = create m_frame
 this.mdi_1=create mdi_1
+this.mditbb_1=create mditbb_1
+this.mdirbb_1=create mdirbb_1
 iCurrent=UpperBound(this.Control)
-this.Control[iCurrent+1]=mdi_1
+this.Control[iCurrent+1]=this.mdi_1
+this.Control[iCurrent+2]=this.mditbb_1
+this.Control[iCurrent+3]=this.mdirbb_1
 end on
 
 on pfc_w_frame.destroy
 call w_master::destroy
 if IsValid(MenuID) then destroy(MenuID)
 destroy(this.mdi_1)
+destroy(this.mditbb_1)
+destroy(this.mdirbb_1)
 end on
 
 event resize;call super::resize;//////////////////////////////////////////////////////////////////////////////
 //
 //	Event:  resize
 //
-//	Description:  
+//	Description:
 //	Notify statusbar that window has resized.
+//	Lay out the client area around a ribbon bar.
 //
 //////////////////////////////////////////////////////////////////////////////
-//	
+//
 //	Revision History
 //
 //	Version
 //	5.0   Initial version
+//	2025	Lay out the client area around a ribbon bar (of_LayoutClient)
 //
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -752,6 +854,9 @@ event resize;call super::resize;////////////////////////////////////////////////
 */
 //
 //////////////////////////////////////////////////////////////////////////////
+
+// Make room for a ribbon bar, if the frame has one.
+of_LayoutClient()
 
 // Notify the service of the resize.
 if IsValid (inv_statusbar) then
@@ -989,5 +1094,19 @@ end event
 
 type mdi_1 from mdiclient within pfc_w_frame
 long BackColor=276856960
+end type
+
+type mditbb_1 from tabbedbar within pfc_w_frame
+int X=0
+int Y=0
+int Width=0
+int Height=104
+end type
+
+type mdirbb_1 from ribbonbar within pfc_w_frame
+int X=0
+int Y=0
+int Width=0
+int Height=596
 end type
 

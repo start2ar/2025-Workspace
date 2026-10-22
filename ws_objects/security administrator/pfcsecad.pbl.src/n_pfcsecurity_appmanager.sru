@@ -13,6 +13,17 @@ type variables
 n_tr inv_trans
 end variables
 
+forward prototypes
+public function boolean of_isexternalgroupmembership ()
+end prototypes
+
+public function boolean of_isexternalgroupmembership ();// True when group membership comes from an identity provider (applications call
+// of_InitSecurity with the user's groups) rather than from security_groupings.
+// Set with ExternalGroupMembership=1 in the [Options] section of pfcsecad.ini.
+// The user-to-group membership screens are then hidden.
+Return ProfileInt(of_GetAppIniFile(), "Options", "ExternalGroupMembership", 0) = 1
+end function
+
 event constructor;call super::constructor;ContextInformation lcx_key
 int li_major, li_minor
 date ld_now
@@ -36,7 +47,7 @@ of_SetVersion ("Version " + String ( li_major ) + "." + String ( li_minor ) + ".
 of_SetLogo ("key.bmp")
 
 // The application bitmap name
-of_SetHelpFile ( "pbpfc" + String ( li_major ) + String ( li_minor ) + ".hlp")
+of_SetHelpFile ( "pbpfc110.chm" )
 
 
 // The application's copyright message
