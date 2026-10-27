@@ -91,16 +91,17 @@ SetPointer(hourglass!)
 // If the SQLSpy Window is open, pass it the proposed embedded sql statement.
 if IsValid(gnv_app.inv_debug) then
 	if IsValid(gnv_app.inv_debug.inv_sqlspy) then
-		ls_sql = "SELECT 'states'.'state_name'~r~nFROM 'states'~r~n"+&
-			"WHERE 'states'.'country' = 'USA'   ;"
+		ls_sql = "SELECT state_name~r~nFROM states~r~n"+&
+			"WHERE country = 'USA'   ;"
 		gnv_app.inv_debug.inv_sqlspy.of_SQLSyntax("Get US State Names", ls_sql)
 	end if
 end if
 
+// Plain names: SQL Server reads names in double quotes as strings, unless QUOTED_IDENTIFIER is on
 DECLARE sqlcursor CURSOR FOR  
-SELECT "states"."state_name"  
-FROM "states"
-WHERE "states"."country" = 'USA';
+SELECT state_name
+FROM states
+WHERE country = 'USA';
 	
 open sqlcursor;
 if sqlca.sqlcode < 0 then
@@ -133,6 +134,7 @@ boolean cancel = true
 integer x = 1179
 integer y = 840
 integer taborder = 30
+string facename = "Segoe UI"
 end type
 
 event clicked;//////////////////////////////////////////////////////////////////////////////
@@ -158,6 +160,7 @@ integer y = 380
 integer width = 640
 integer height = 432
 integer taborder = 10
+string facename = "Segoe UI"
 end type
 
 event constructor;//////////////////////////////////////////////////////////////////////////////
@@ -183,6 +186,7 @@ integer y = 380
 integer width = 640
 integer height = 432
 integer taborder = 20
+string facename = "Segoe UI"
 end type
 
 event constructor;//////////////////////////////////////////////////////////////////////////////
@@ -206,8 +210,9 @@ long backcolor = 79219928
 string text = "Drop-down Picture List Box:"
 integer x = 891
 integer y = 308
-integer width = 640
+integer width = 663
 boolean bringtotop = true
+string facename = "Segoe UI"
 end type
 
 type st_1 from u_st within w_dropdownsearchlb
@@ -217,9 +222,10 @@ string text = "Sample the ~"type ahead~" search features of PFC~'s Drop-down"
 alignment alignment = center!
 integer x = 82
 integer y = 44
-integer width = 1445
+integer width = 1477
 integer height = 60
 boolean bringtotop = true
+string facename = "Segoe UI"
 end type
 
 type st_ddlb from u_st within w_dropdownsearchlb
@@ -230,29 +236,32 @@ integer x = 82
 integer y = 308
 integer width = 640
 boolean bringtotop = true
+string facename = "Segoe UI"
 end type
 
 type st_2 from u_st within w_dropdownsearchlb
 long textcolor = 33554432
 long backcolor = 79219928
-string text = "List Box and Drop-down Picture List Box by typing the name"
+string text = "List Box and Drop-down Picture List Box: type the name of"
 alignment alignment = center!
 integer x = 82
 integer y = 108
 integer width = 1445
 integer height = 60
 boolean bringtotop = true
+string facename = "Segoe UI"
 end type
 
 type st_3 from u_st within w_dropdownsearchlb
 long textcolor = 33554432
 long backcolor = 79219928
-string text = "of a US state into the single line edit portion of the controls below."
+string text = "a US state in the edit part of the controls below."
 alignment alignment = center!
 integer x = 82
 integer y = 172
-integer width = 1445
+integer width = 1596
 integer height = 60
 boolean bringtotop = true
+string facename = "Segoe UI"
 end type
 

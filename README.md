@@ -8,18 +8,28 @@ Once you have forked the project your copy will show you when we have made addit
 
 <img width="1157" height="80" alt="image" src="https://github.com/user-attachments/assets/1a708200-0ddc-4355-9afe-9800447323bf" />
 
+## The Examples app
+
+The `pfc examples` target is a catalog of small windows that each show a PFC service at work.  See [examples/README.md](examples/README.md) for setting it up (the EASDEMO database and the images) and for the list of examples.
+
+## Demo apps
+
+- `openid demo`: signing in with an OpenID Connect identity provider (Authentik, Microsoft Entra ID, Google), the OAuth 2.0 flows, and PFC security from the provider's groups. See [openid demo/README.md](openid%20demo/README.md).
+- `smtp demo`: sending mail with `n_smtpclient` and an OAuth 2.0 token. See [smtp demo/README.md](smtp%20demo/README.md).
+
 ## Documentation
 
 The PFC documentation (the User's Guide and the Object Reference, converted to Markdown and kept up to date) is in the [docs](https://github.com/OpenSourcePFCLibraries/docs) repository.
 
 ## Help files
 
-The help files are not included in this repository.  Each one is published as a release in its own repository; download it and put it beside your application's exe:
+The help files are PDF files, and they are not included in this repository.  Download them and put them beside your application's exe:
 
-- [pfcdlg.chm](https://github.com/OpenSourcePFCLibraries/PFCDLG-help-file-and-source/releases/latest/download/pfcdlg.chm): help for the PFC dialogs ([PFCDLG-help-file-and-source](https://github.com/OpenSourcePFCLibraries/PFCDLG-help-file-and-source/releases/latest))
-- [PBPFC110.chm](https://github.com/OpenSourcePFCLibraries/Help-File-Source/releases/latest/download/PBPFC110.chm): the PFC help file, used by the security administrator ([Help-File-Source](https://github.com/OpenSourcePFCLibraries/Help-File-Source/releases/latest))
-- [PFCEXAMP.chm](https://github.com/OpenSourcePFCLibraries/Example-application-help-file/releases/latest/download/PFCEXAMP.chm): help for the PFC example application ([Example-application-help-file](https://github.com/OpenSourcePFCLibraries/Example-application-help-file/releases/latest))
-- [pfctutor.chm](https://github.com/OpenSourcePFCLibraries/PFCTUTOR-help-file-and-source/releases/latest/download/pfctutor.chm): help for the PFC tutorial ([PFCTUTOR-help-file-and-source](https://github.com/OpenSourcePFCLibraries/PFCTUTOR-help-file-and-source/releases/latest))
+- [pfcdlg.pdf](https://github.com/OpenSourcePFCLibraries/docs/raw/main/dialog-help/pfcdlg.pdf): help for the PFC dialogs, which their Help buttons open (built from the [dialog help](https://github.com/OpenSourcePFCLibraries/docs/tree/main/dialog-help) in the docs repository)
+- [PFCEXAMP.pdf](https://github.com/OpenSourcePFCLibraries/Example-application-help-file/releases/latest/download/PFCEXAMP.pdf): help for the PFC example application ([Example-application-help-file](https://github.com/OpenSourcePFCLibraries/Example-application-help-file/releases/latest))
+- [pfctutor.pdf](https://github.com/OpenSourcePFCLibraries/PFCTUTOR-help-file-and-source/releases/latest/download/pfctutor.pdf): help for the PFC tutorial ([PFCTUTOR-help-file-and-source](https://github.com/OpenSourcePFCLibraries/PFCTUTOR-help-file-and-source/releases/latest))
+
+PFC's help service (`n_cst_help`, started with `gnv_app.of_SetHelp(True)`) shows a PDF help file at a topic, in a window of the application (`w_helpviewer`, with the Microsoft Edge WebView2 PDF viewer) or, with `gnv_app.inv_help.of_SetViewer(gnv_app.inv_help.PDFVIEWER)`, in the user's PDF viewer.  A topic is a named destination in the PDF file: `topic_<number>` for a help topic number, or a name, such as the PFC dialogs' `w_find`.  Compiled HTML Help (.chm) files are still shown with ShowHelp.
 
 ## Building from the command line
 

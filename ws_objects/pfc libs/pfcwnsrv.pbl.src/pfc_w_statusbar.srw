@@ -26,7 +26,9 @@ end type
 global pfc_w_statusbar pfc_w_statusbar
 
 type prototypes
-
+// The frame's client area in screen coordinates, for of_SetPosition (GetClientRect is
+// declared in pfc_w_master)
+Function boolean pfc_ClientToScreen (longptr al_hwnd, ref blob ablb_point) Library "user32.dll" Alias For "ClientToScreen"
 end prototypes
 
 type variables
@@ -42,6 +44,7 @@ boolean		ib_win10= False
 w_frame 		iw_parentwindow
 n_cst_platform 	inv_platform
 long	il_backgroundcolor = 78682240  // buttonface
+long	il_textcolor = 33554432  // window text
 end variables
 
 forward prototypes
@@ -59,6 +62,7 @@ protected function integer of_getsystemsettings ()
 protected function long of_color (string as_rgb)
 protected function integer of_restorefocuspoint (graphicobject ago_focus)
 public function integer of_setbackgroundcolor (long al_backgroundcolor)
+public function integer of_settextcolor (long al_textcolor)
 end prototypes
 
 event wininichange;call super::wininichange;//////////////////////////////////////////////////////////////////////////////
@@ -111,6 +115,10 @@ Integer li_rc
 li_rc = of_GetSystemSettings() 
 
 // Refresh the colors of all the objects.
+// (the application's, the theme's or the new system colors, through the service)
+If IsValid(iw_parentwindow) Then
+	If IsValid(iw_parentwindow.inv_statusbar) Then li_rc = iw_parentwindow.inv_statusbar.of_RefreshThemeColors()
+End If
 li_rc = of_RefreshColors()
 
 // Force a resize on the Frame to enforce the correct position of this window.
@@ -707,14 +715,16 @@ public function integer of_refreshcolors ();////////////////////////////////////
 //
 //	Description:
 //	Refreshes the colors of all the appropriate objects to match the desired
-//	background color.
+//	background and text colors.  The progress bar text keeps its own color
+//	(n_cst_winsrv_statusbar.of_SetBarTextColor).
 //
 //////////////////////////////////////////////////////////////////////////////
-//	
+//
 //	Revision History
 //
 //	Version
 //	5.0   Initial version
+//	2025	Text color
 //
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -752,11 +762,14 @@ ls_allobjects = dw_statusbar.Describe('DataWindow.Objects')
 // Set window background
 this.backcolor = il_backgroundcolor
 
-// Set each datawindow object background to match
+// Set each datawindow object background to match, and the color of the text
 DO UNTIL Len(ls_allobjects) <= 0
 	ls_object = lnv_string.of_gettoken(ls_allobjects,'~t')
 	ls_modifyexp =	ls_object+".Background.Color='"+string(il_backgroundcolor)+"' "
-	ls_rc = dw_statusbar.Modify (ls_modifyexp)	
+	If dw_statusbar.Describe(ls_object + ".Type") = "compute" And ls_object <> "pfc_progress_border" Then
+		ls_modifyexp += ls_object+".Color='"+string(il_textcolor)+"' "
+	End If
+	ls_rc = dw_statusbar.Modify (ls_modifyexp)
 LOOP
 
 Return 1
@@ -773,7 +786,7 @@ protected function integer of_setposition ();///////////////////////////////////
 //	Returns:  	Integer
 //	1 if it succeeds and -1 if an error occurs.
 //
-//	Description:  	
+//	Description:
 //	Moves this StatusBar window so it is positioned over the lower right
 //	hand portion of the Microhelp bar.
 //
@@ -783,6 +796,9 @@ protected function integer of_setposition ();///////////////////////////////////
 //
 //	Version
 //	5.0   Initial version
+//	2025	Positioned from the frame's client area (GetClientRect and ClientToScreen)
+//			instead of its size less estimated border and title bar sizes, which
+//			were wrong with some themes and Windows versions (#45)
 //
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -810,16 +826,50 @@ protected function integer of_setposition ();///////////////////////////////////
 
 long 		ll_microhelp_ypos, ll_frame_xpos, ll_desiredstatubar_xpos
 integer	li_xpos_extra=0, li_ypos_extra=0
+blob{16}	lblb_client
+blob{8}	lblb_point
+long		ll_left, ll_top, ll_right, ll_bottom
 
 // Check window reference.
 If IsNull(iw_parentwindow) Or Not IsValid(iw_parentwindow) Then
 	Return -1
 End If
 
-if iw_parentwindow.windowstate = minimized! then 
+if iw_parentwindow.windowstate = minimized! then
 	return 1
 end if
 
+// The frame's client area, in screen coordinates: the MicroHelp bar is at its
+// bottom.  Windows knows where it is whatever the theme, the border and the title
+// bar, so no adjustments for them are needed (#45).
+If pfc_GetClientRect(Handle(iw_parentwindow), lblb_client) Then
+	// The client rectangle's top left corner is (0, 0); its bottom right corner
+	// is (width, height)
+	If pfc_ClientToScreen(Handle(iw_parentwindow), lblb_point) Then
+		ll_left = PixelsToUnits(Long(BlobMid(lblb_point, 1, 4)), XPixelsToUnits!)
+		ll_top = PixelsToUnits(Long(BlobMid(lblb_point, 5, 4)), YPixelsToUnits!)
+		ll_right = PixelsToUnits(Long(BlobMid(lblb_point, 1, 4)) + Long(BlobMid(lblb_client, 9, 4)), XPixelsToUnits!)
+		ll_bottom = PixelsToUnits(Long(BlobMid(lblb_point, 5, 4)) + Long(BlobMid(lblb_client, 13, 4)), YPixelsToUnits!)
+
+		// Centered in the MicroHelp bar (it is usually less high), at its right end
+		ll_microhelp_ypos = ll_bottom - iw_parentwindow.mdi_1.microhelpheight
+		If this.Height < iw_parentwindow.mdi_1.microhelpheight Then
+			ll_microhelp_ypos += (iw_parentwindow.mdi_1.microhelpheight - this.Height) / 2
+		End If
+		ll_desiredstatubar_xpos = ll_right - (ii_winmaxwidth + 12)
+		If ll_desiredstatubar_xpos < ll_left + 12 Then
+			// The frame is narrower than the Status Bar: as wide as the frame
+			this.move(ll_left + 12, ll_microhelp_ypos)
+			this.width = (ll_right - ll_left) - 24
+		Else
+			this.move(ll_desiredstatubar_xpos, ll_microhelp_ypos)
+			this.width = ii_winmaxwidth
+		End If
+		Return 1
+	End If
+End If
+
+// Without the client area (it can't be read): from the frame's size, as before.
 // Windows 95 has a bigger gap on the hand right side.
 If ib_win95 Then
 	li_xpos_extra = 50
@@ -1206,6 +1256,61 @@ il_backgroundcolor = al_backgroundcolor
 Return 1
 end function
 
+public function integer of_settextcolor (long al_textcolor);//////////////////////////////////////////////////////////////////////////////
+//
+//	Function:  of_SetTextColor
+//
+//	Access:  public
+//
+//	Arguments:
+//	al_textcolor	color of the status bar text
+//
+//	Returns:  Integer
+//	 1 if it succeeds, -1 if the color is not valid
+//
+//	Description:  Stores the text color; of_RefreshColors applies it.  Called by
+//		n_cst_winsrv_statusbar.of_SetTextColor.
+//
+//////////////////////////////////////////////////////////////////////////////
+//
+//	Revision History
+//
+//	Version
+//	2025	Initial version
+//
+//////////////////////////////////////////////////////////////////////////////
+//
+/*
+ * Open Source PowerBuilder Foundation Class Libraries
+ *
+ * Copyright (c) 2004-2017, All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted in accordance with the MIT License
+
+ *
+ * https://opensource.org/licenses/MIT
+ *
+ * ====================================================================
+ *
+ * This software consists of voluntary contributions made by many
+ * individuals and was originally based on software copyright (c)
+ * 1996-2004 Sybase, Inc. http://www.sybase.com.  For more
+ * information on the Open Source PowerBuilder Foundation Class
+ * Libraries see https://github.com/OpenSourcePFCLibraries
+*/
+//
+//////////////////////////////////////////////////////////////////////////////
+
+If IsNull(al_textcolor) or al_textcolor < 0 Then
+	Return -1
+End If
+
+il_textcolor = al_textcolor
+
+Return 1
+end function
+
 event open;//////////////////////////////////////////////////////////////////////////////
 //	Object Name:		pfc_w_statusbar
 //	Description:			Status bar window that 'floats' over the microhelp area of a MDI frame.
@@ -1333,6 +1438,9 @@ graphicobject lgo_withfocus
 If IsNull(iw_parentwindow) Or Not IsValid(iw_parentwindow) Then
 	Return
 End If
+
+// Follow a theme applied with ApplyTheme anywhere (PowerBuilder has no event for it)
+If IsValid(iw_parentwindow.inv_statusbar) Then iw_parentwindow.inv_statusbar.of_CheckTheme()
 
 // Refresh the displayed objects.
 li_rc = of_RefreshVisuals()

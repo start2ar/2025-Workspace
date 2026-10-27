@@ -22,6 +22,7 @@ integer width = 2587
 integer height = 1552
 string title = "PFC Examples Application"
 string menuname = "m_examplemain"
+boolean displaymenuasribbonbar = true
 windowstate windowstate = maximized!
 event ue_printtree ( )
 event ue_statusbarclicked ( integer ai_xpos,  integer ai_ypos,  string as_name )
@@ -53,10 +54,17 @@ Protected:
 string	is_mrukey = "pfc examples"
 string	is_mruexampleclassname // classname of the example opened by pfc_open
 string	is_mruexampletitle	// title of the example opened
+// The tree and list of examples, from the catalog files
+n_cst_examplecatalog	inv_catalog
 end variables
 
 forward prototypes
 public function integer of_openexample (window aw_window, n_cst_mruattrib anv_mruattrib)
+public function integer of_layoutclient ()
+public function integer of_setribbon (boolean ab_ribbon)
+protected function integer of_controltop ()
+protected subroutine of_movecontrols (integer ai_shift)
+protected subroutine of_registercontrols ()
 end prototypes
 
 event ue_printtree;call super::ue_printtree;//////////////////////////////////////////////////////////////////////////////
@@ -216,6 +224,135 @@ OpenWithParm(lw_window, anv_mruattrib.is_menuitemkey, anv_mruattrib.is_classname
 Return 1
 end function
 
+public function integer of_layoutclient ();//////////////////////////////////////////////////////////////////////////////
+//
+//	Function:		of_LayoutClient
+//
+//	Access:			Public
+//
+//	Arguments:		None
+//
+//	Returns:			Integer
+//						1
+//
+//	Description:	Keeps the MDI client area off the TreeView and ListView.  The examples
+//						open as their own windows, never as sheets, so the client area is a
+//						hidden strip of no height above the MicroHelp bar.  Without this, it
+//						covers the controls of the frame (see "Sizing the client area" in
+//						Application Techniques).
+//
+//////////////////////////////////////////////////////////////////////////////
+If this.WindowState = Minimized! Then Return 0
+
+mdi_1.Visible = False
+mdi_1.Move(this.WorkSpaceX(), this.WorkSpaceY() + this.WorkSpaceHeight() - mdi_1.MicroHelpHeight)
+mdi_1.Resize(this.WorkSpaceWidth(), 0)
+
+Return 1
+end function
+
+
+public function integer of_setribbon (boolean ab_ribbon);//////////////////////////////////////////////////////////////////////////////
+//
+//	Function:		of_SetRibbon
+//
+//	Access:			Public
+//
+//	Arguments:		ab_ribbon	True shows the menu as a ribbon, False as the menu bar
+//									and toolbar
+//
+//	Returns:			Integer
+//						1 if it changed, 0 if it was already so
+//
+//	Description:	Switches the ribbon on or off while the window is open: the tree and
+//						list move below the ribbon, or up to the top, and are registered
+//						with the resize service again at the window's current size.
+//
+//////////////////////////////////////////////////////////////////////////////
+integer	li_top
+
+If this.DisplayMenuAsRibbonBar = ab_ribbon Then Return 0
+
+this.SetRedraw(False)
+li_top = of_ControlTop()
+inv_resize.of_UnRegister(tv_1)
+inv_resize.of_UnRegister(lv_1)
+inv_resize.of_UnRegister(st_1)
+inv_resize.of_UnRegister(st_2)
+inv_resize.of_UnRegister(st_v1)
+
+this.DisplayMenuAsRibbonBar = ab_ribbon
+of_MoveControls(of_ControlTop() - li_top)
+
+inv_resize.of_SetOrigSize(this.WorkSpaceWidth(), this.WorkSpaceHeight())
+of_RegisterControls()
+this.SetRedraw(True)
+Return 1
+end function
+
+protected function integer of_controltop ();//////////////////////////////////////////////////////////////////////////////
+//
+//	Function:		of_ControlTop
+//
+//	Access:			Protected
+//
+//	Returns:			Integer
+//						Where the tree and list's captions start: below the ribbon, when
+//						the menu is shown as one, otherwise where they were designed
+//
+//	Description:	The ribbon covers the top of the workspace.  It gets the font of the
+//						tree and list, Segoe UI at 8 points: its own is much larger.
+//
+//////////////////////////////////////////////////////////////////////////////
+If Not this.DisplayMenuAsRibbonBar Then Return 136
+
+mdirbb_1.FaceName = "Segoe UI"
+mdirbb_1.TextSize = -8
+Return mdirbb_1.Y + mdirbb_1.Height + 8
+end function
+
+protected subroutine of_movecontrols (integer ai_shift);//////////////////////////////////////////////////////////////////////////////
+//
+//	Function:		of_MoveControls
+//
+//	Access:			Protected
+//
+//	Arguments:		ai_shift	How far the controls move down (up when negative)
+//
+//	Description:	Moves the tree, the list, their captions and the split bar, and
+//						makes the tree, list and split bar shorter (or taller) by as much,
+//						so their bottoms stay where they are.
+//
+//////////////////////////////////////////////////////////////////////////////
+If ai_shift = 0 Then Return
+
+st_1.Y += ai_shift
+st_2.Y += ai_shift
+tv_1.Y += ai_shift
+tv_1.Height -= ai_shift
+lv_1.Y += ai_shift
+lv_1.Height -= ai_shift
+st_v1.Y += ai_shift
+st_v1.Height -= ai_shift
+end subroutine
+
+protected subroutine of_registercontrols ();//////////////////////////////////////////////////////////////////////////////
+//
+//	Function:		of_RegisterControls
+//
+//	Access:			Protected
+//
+//	Description:	Registers the tree, the list, their captions and the split bar with
+//						the resize service.
+//
+//////////////////////////////////////////////////////////////////////////////
+inv_resize.of_Register(tv_1, 0, 0, 50, 100)
+inv_resize.of_Register(lv_1, 50, 0, 50, 100)
+inv_resize.of_Register(st_1, 50, 0, 50, 0)
+inv_resize.of_Register(st_2, 0, 0, 50, 0)
+inv_resize.of_Register(st_v1, 50, 0, 0, 100 )
+end subroutine
+
 on w_examplemain.create
 int iCurrent
 call super::create
@@ -277,20 +414,27 @@ inv_menu.of_GetMenuReference(this.menuid, "m_sqlspy", im_sqlspywindow)
 inv_menu.of_GetMenuReference(this.menuid, "m_debuglog", im_debuglogwindow)
 inv_menu.of_GetMenuReference(this.menuid, "m_utilitypreferences", im_utilpref)
 
+// Read the example catalog (exam.txt and examcat.txt)
+if inv_catalog.of_Load() <> 1 then
+	MessageBox(this.Title, "The example catalog (" + inv_catalog.EXAMPLES_FILE + " and " + &
+		inv_catalog.CATEGORIES_FILE + ") couldn't be read.  They must be in the application's folder.", StopSign!)
+	return
+end if
+
 // set up treeview datasource for level 1
-li_rc = tv_1.inv_levelsource.of_Register(1, "category_name", "", "d_toplevel", SQLCA, "")
+li_rc = tv_1.inv_levelsource.of_Register(1, "category_name", "", inv_catalog.of_GetTreeSource(1), "")
 // set the pictures for level 1 to a picture index on the control
 tv_1.inv_levelsource.of_SetPictureColumn(1, "1")
 tv_1.inv_levelsource.of_setselectedpicturecolumn(1, "1")
 
 // set up treeview datasource for level 2
-li_rc = tv_1.inv_levelsource.of_Register(2, "category_name", ":parent.1.category_id", "d_maincategorylist",	SQLCA, "")
+li_rc = tv_1.inv_levelsource.of_Register(2, "category_name", ":parent.1.category_id", inv_catalog.of_GetTreeSource(2), "category_parent_id")
 // set the pictures for level 2 to a database column holding the control indexes
 tv_1.inv_levelsource.of_setpicturecolumn(2, "picture_idx")
 tv_1.inv_levelsource.of_setselectedpicturecolumn(2, "selected_picture_idx")
 
 // set up treeview datasource for level 2
-li_rc = tv_1.inv_levelsource.of_Register(3, "category_name", ":parent.1.category_id", "d_catexamples",	SQLCA, "")
+li_rc = tv_1.inv_levelsource.of_Register(3, "category_name", ":parent.1.category_id", inv_catalog.of_GetTreeSource(3), "category_parent_id")
 // set the pictures for level 2 to a database column holding the control indexes
 tv_1.inv_levelsource.of_setpicturecolumn(3, "picture_idx")
 tv_1.inv_levelsource.of_setselectedpicturecolumn(3, "selected_picture_idx")
@@ -309,7 +453,6 @@ event pfc_preopen;//////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 //	
 //////////////////////////////////////////////////////////////////////////////
-
 // Register an id with MRU service.  All examples opened from this window will use this id
 If isvalid(gnv_app.inv_mru) Then
 	gnv_app.inv_mru.of_Register(is_mrukey)
@@ -336,6 +479,12 @@ if IsValid(inv_statusbar) then
 	inv_statusbar.of_setbackgroundcolor(13421772)
 end if
 
+// The menu as a ribbon (RibbonView), unless RibbonBar=0 in the [Application] section of the
+// INI file.  The ribbon covers the top of the workspace, so the controls move down below it,
+// before they are registered with the resize service.
+this.DisplayMenuAsRibbonBar = (ProfileString(gnv_app.of_GetAppIniFile(), "Application", "RibbonBar", "1") <> "0")
+of_MoveControls(of_ControlTop() - st_v1.Y)
+
 // Start the Resize Service.
 of_SetResize(true)
 
@@ -344,11 +493,7 @@ inv_resize.of_SetMinSize(1477, 920)
 
 // Register each control, specifying which style of behavior it should 
 // follow when the window resizes.
-inv_resize.of_Register(tv_1, 0, 0, 50, 100)
-inv_resize.of_Register(lv_1, 50, 0, 50, 100)
-inv_resize.of_Register(st_1, 50, 0, 50, 0)
-inv_resize.of_Register(st_2, 0, 0, 50, 0)
-inv_resize.of_Register(st_v1, 50, 0, 0, 100 )
+of_RegisterControls()
 end event
 
 event pfc_postopen;call super::pfc_postopen;//////////////////////////////////////////////////////////////////////////////
@@ -554,16 +699,16 @@ event pfc_help;/////////////////////////////////////////////////////////////////
 //	-1 = error
 //
 //	Description:
-//	Call the windows help file associated with the application.
-//	Uses the HelpType property of this window to determine what help
-//	to display.
+//	Show the help topic of the example or the category selected in the
+//	tree, or the start of the help file.
 //
 //////////////////////////////////////////////////////////////////////////////
-//	
+//
 //	Revision History
 //
 //	Version
 //	5.0   Initial version
+//	2025	The ancestor shows the help file (a PDF file) with the help service
 //
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -589,36 +734,32 @@ event pfc_help;/////////////////////////////////////////////////////////////////
 //
 //////////////////////////////////////////////////////////////////////////////
 
-// override to check for help file existance
-Long		ll_helptypeid
-String	ls_helpfile
-String	ls_helptypeid
+long		ll_handle, ll_row
+any		la_none
+treeviewitem	ltvi_item
+n_ds		lds_source
 
-ls_helpfile = gnv_app.of_GetHelpFile()
-If Not FileExists(ls_helpfile) Then
-	Return -1	
-End If
-
-If Len (Trim (ls_helpfile)) > 0 Then
-	If Lower (ClassName (ia_helptypeid)) = 'long' Then
-		ll_helptypeid = ia_helptypeid
-		Return ShowHelp (ls_helpfile, Topic! , ll_helptypeid)
-	ElseIf Lower (ClassName (ia_helptypeid)) = 'string' Then
-		ls_helptypeid = ia_helptypeid
-		Return ShowHelp (ls_helpfile, Keyword!, ls_helptypeid)
-	Else
-		Return ShowHelp (ls_helpfile, Index!)
+// The topic of the example or the category selected in the tree (the example's is in the
+// catalog; a category's is 100 + its category_id), or else the contents
+ia_helptypeid = la_none
+ll_handle = tv_1.FindItem(CurrentTreeItem!, 0)
+If ll_handle > 0 And IsValid(tv_1.inv_levelsource) Then
+	tv_1.GetItem(ll_handle, ltvi_item)
+	If tv_1.inv_levelsource.of_GetDataRow(ll_handle, lds_source, ll_row) = 1 Then
+		Choose Case ltvi_item.Level
+			Case 2
+				ia_helptypeid = 100 + lds_source.GetItemNumber(ll_row, "category_id")
+			Case 3
+				ia_helptypeid = inv_catalog.of_GetHelpContext(lds_source.GetItemNumber(ll_row, "example_id"))
+		End Choose
 	End If
 End If
-
-If IsValid(gnv_app.inv_debug) Then		
-	of_MessageBox ("pfc_master_helpdebug", "PowerBuilder Class Library", "Help has been requested but the"+&
-					" Required Help File Name has Not been Set.  Use of_SetHelpFile"+&
-					" on The Application Manager to Set The attribute.", &
-					Exclamation!, OK!, 1)
+If ClassName(ia_helptypeid) = "long" Then
+	If ia_helptypeid = 0 Then ia_helptypeid = la_none
 End If
-				
-Return 0
+
+// The help service shows the topic (in pfcexamp.pdf, the named destination topic_<number>)
+Return Super::Event pfc_help()
 end event
 
 type lv_1 from u_lvs within w_examplemain
@@ -630,10 +771,11 @@ integer height = 968
 integer taborder = 10
 long backcolor = 1090519039
 boolean autoarrange = true
-string largepicturename[] = {"Preferences!","Custom059!","Library5!","lgopen.bmp","Window!","RunWindow!","Run!"}
-string smallpicturename[] = {"Preferences!","Custom059!","Library5!","selcatgy.bmp","Window!","RunWindow!","Run!"}
-string statepicturename[] = {"new.bmp","hot.bmp"}
+string largepicturename[] = {"images\cat_root.svg","images\folder.svg","images\folder.svg","images\folder_open.svg","images\example.svg","images\run_example.svg","images\run_example.svg"}
+string smallpicturename[] = {"images\cat_root.svg","images\folder.svg","images\folder.svg","images\folder_open.svg","images\example.svg","images\run_example.svg","images\run_example.svg"}
+string statepicturename[] = {"images\example_new.svg","images\example_enhanced.svg"}
 long statepicturemaskcolor = 16777215
+string facename = "Segoe UI"
 end type
 
 event ue_selectionchange;call super::ue_selectionchange;//////////////////////////////////////////////////////////////////////////////
@@ -686,6 +828,9 @@ listviewitem 	llvi_selectedlvitem
 treeviewitem 	ltvi_newtreeitem, ltvi_startingtreeitem
 n_ds			 	lds_lvdatastore
 n_cst_mruattrib	lnv_mruattrib
+
+// A double-click on the list's background, not on an item, does nothing
+If index < 1 Then Return
 
 // Get the listview item that was doubleclicked.
 this.GetItem(index, llvi_selectedlvitem)
@@ -773,7 +918,7 @@ of_setsort(true)
 
 // set the picturemask color to white because that is the background color of the bmp
 this.statepicturemaskcolor = RGB(255, 255, 255) //White!
-li_index = this.addstatepicture("new.bmp")
+li_index = this.addstatepicture("images\example_new.svg")
 end event
 
 event pfc_populate;//////////////////////////////////////////////////////////////////////////////
@@ -795,7 +940,7 @@ event pfc_populate;/////////////////////////////////////////////////////////////
 //
 //////////////////////////////////////////////////////////////////////////////
 integer	li_rc
-long		ll_level
+long		ll_level, ll_row, ll_key
 string	ls_label
 n_ds		lds_data
 
@@ -804,20 +949,26 @@ Setpointer(hourglass!)
 // Set the listview source based on the treeview level information
 ll_level = inv_explorerattrib.itvi_selecteditem.Level
 ls_label = inv_explorerattrib.itvi_selecteditem.Label
+ll_row = inv_explorerattrib.il_datastorerow
+if ll_level = 3 then
+	ll_key = inv_explorerattrib.ids_datastore.GetItemNumber(ll_row, "example_id")
+else
+	ll_key = inv_explorerattrib.ids_datastore.GetItemNumber(ll_row, "category_id")
+end if
 
 choose case ll_level
 	case 1
-		inv_datasource.of_Register("category_name", "d_maincategorylist", SQLCA )
+		inv_datasource.of_Register("category_name", inv_catalog.of_GetListSource(ll_level, ll_key))
 		inv_datasource.of_SetPictureColumn("picture_idx")
 		inv_datasource.of_SetStatePictureColumn("overlay_picture_idx")
 //		inv_datasource.of_SetOverlayPictureColumn("overlay_picture_idx")
 	case 2
-		inv_datasource.of_Register("category_name", "d_catexamples", SQLCA )
+		inv_datasource.of_Register("category_name", inv_catalog.of_GetListSource(ll_level, ll_key))
 		inv_datasource.of_SetPictureColumn("picture_idx")
 		inv_datasource.of_SetStatePictureColumn("overlay_picture_idx")
 //		inv_datasource.of_SetOverlayPictureColumn("overlay_picture_idx")
 	case 3
-		inv_datasource.of_Register("example", "d_windows", SQLCA )
+		inv_datasource.of_Register("example", inv_catalog.of_GetListSource(ll_level, ll_key))
 		inv_datasource.of_SetPictureColumn("7")
 		inv_datasource.of_SetStatePictureColumn("overlay_picture_idx")
 //		inv_datasource.of_SetOverlayPictureColumn("overlay_picture_idx")
@@ -847,36 +998,16 @@ event pfc_retrieve;/////////////////////////////////////////////////////////////
 //	Description:
 //	Return the number of rows placed in the data source
 //
-//	Extend this event to populate the retrieval arguments and then call the of_retrieve()
-//		function.
+//	The data source is a DataStore from the example catalog, which already has the rows
+//	(see pfc_populate), so there are no retrieval arguments.
 //
 //////////////////////////////////////////////////////////////////////////////
-//	
+//
 //	override ancestor script
 //
 //////////////////////////////////////////////////////////////////////////////
-long					ll_level, ll_row
-string				ls_ostype
 any					la_args[20]
-n_cst_conversion	lnv_conversion
 
-// Get the state information for the selected treeview item.
-ll_level = inv_explorerattrib.itvi_selecteditem.Level
-ll_row = inv_explorerattrib.il_datastorerow
-
-choose case ll_level
-	case 1
-		la_args[1] = inv_explorerattrib.ids_datastore.inv_base.of_GetItemAny(ll_row, "category_id")
-	case 2
-		la_args[1] = inv_explorerattrib.ids_datastore.inv_base.of_GetItemAny(ll_row, "category_id")
-		ls_ostype = lnv_conversion.of_String(gnv_app.ienv_object.ostype)
-		if ls_ostype = "windowsnt" then ls_ostype = "winnt"
-		la_args[2] = lower("%" + ls_ostype + "%")
-	case 3
-		la_args[1] = inv_explorerattrib.ids_datastore.inv_base.of_GetItemAny(ll_row, "example_id")
-end choose
-
-// original code
 Return of_retrieve(la_args, ads_data)
 end event
 
@@ -890,7 +1021,7 @@ integer textsize = -8
 integer weight = 400
 fontpitch fontpitch = variable!
 fontfamily fontfamily = swiss!
-string facename = "MS Sans Serif"
+string facename = "Segoe UI"
 long textcolor = 33554432
 long backcolor = 77633680
 string text = "Contents of "
@@ -909,7 +1040,7 @@ integer textsize = -8
 integer weight = 400
 fontpitch fontpitch = variable!
 fontfamily fontfamily = swiss!
-string facename = "MS Sans Serif"
+string facename = "Segoe UI"
 long textcolor = 33554432
 long backcolor = 77633680
 string text = "All Folders"
@@ -928,7 +1059,8 @@ integer taborder = 20
 long backcolor = 1090519039
 boolean linesatroot = true
 boolean hideselection = false
-string picturename[] = {"Preferences!","Custom059!","Library5!","selcatgy.bmp","Window!","RunWindow!"}
+string picturename[] = {"images\cat_root.svg","images\folder.svg","images\folder.svg","images\folder_open.svg","images\example.svg","images\run_example.svg"}
+string facename = "Segoe UI"
 end type
 
 event ue_selectionchange;call super::ue_selectionchange;//////////////////////////////////////////////////////////////////////////////
@@ -1031,7 +1163,7 @@ of_setlevelsource(true)
 
 // set the picturemask color to white because that is the background color of the bmp
 this.picturemaskcolor = RGB(255, 255, 255) //White!
-li_index = this.addpicture("new.bmp")
+li_index = this.addpicture("images\example_new.svg")
 
 // add the picture index to the first overplay picture array location
 this.SetOverlayPicture(1, li_index)
@@ -1104,15 +1236,10 @@ event pfc_retrieve;call super::pfc_retrieve;////////////////////////////////////
 //
 //////////////////////////////////////////////////////////////////////////////
 Any				la_args[20]
-Integer			li_nextlevel, li_level
-string			ls_ostype
-treeviewitem	ltvi_item
-n_cst_conversion	lnv_conversion
+Integer			li_nextlevel
 
 // Check Arguments
 If (al_parent < 0) or IsNull(al_parent) Then Return -1
-
-this.getitem(al_parent, ltvi_item)
 
 li_nextlevel = of_GetNextLevel(al_parent)
 If li_nextlevel < 1 then Return -1
@@ -1123,15 +1250,8 @@ If isvalid(inv_levelsource) then
 	inv_levelsource.of_getargs(al_Parent, li_nextLevel, la_Args)
 End If
 
-// If the level you are populating requires even one retrieval argument that
-// is not based on previous levels, you must add the arguments manually into the
-// 20 element locally defined array of type any
-li_level = ltvi_item.level
-if li_level = 2 then
-	ls_ostype = lnv_conversion.of_String(gnv_app.ienv_object.ostype)
-	if ls_ostype = "windowsnt" then ls_ostype = "winnt"
-	la_args[2] = lower("%" + ls_ostype + "%")
-end if
+// The level source service filters the catalog's rows on the parent's category_id;
+// the catalog already has only the examples for this platform (see the open event).
 
 // retrieve the rows into the datasource
 Return of_retrieve(al_parent, la_args, ads_data)

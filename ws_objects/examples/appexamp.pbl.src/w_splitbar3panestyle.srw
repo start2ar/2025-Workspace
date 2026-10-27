@@ -91,6 +91,9 @@ inv_resize.of_Register(rte_topright, 0, 0, 100, 0)
 inv_resize.of_Register(st_h1, 0, 0, 100, 0)
 inv_resize.of_Register(mle_bottom, 0, 0, 100, 100)
 
+// The window was laid out small: open it larger, and the resize service scales the panes
+this.Resize(2240, 1400)
+
 end event
 
 type rte_topright from u_rte within w_splitbar3panestyle
@@ -119,6 +122,7 @@ int Height=368
 int TabOrder=30
 boolean BringToTop=true
 long TextColor=33554432
+string facename = "Segoe UI"
 end type
 
 type st_h1 from u_st_splitbar within w_splitbar3panestyle

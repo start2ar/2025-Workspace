@@ -105,10 +105,13 @@ inv_findattrib.ib_wholeword = cbx_wholeword.Checked
 //Set the MatchCase flag.
 inv_findattrib.ib_matchcase = cbx_matchcase.Checked
 
+string	ls_parms[]
+
 //Call event to process.
 If inv_findattrib.ipo_requestor.dynamic event pfc_findnext(inv_findattrib) = 0 Then
+	ls_parms[1] = this.Title
 	of_Messagebox("pfc_find_finishsearch", this.Title, &
-		this.Title+" has finished searching.", Information!, OK!, 1)
+		"%s has finished searching.", ls_parms, Information!, OK!, 1)
 end if
 
 end event
@@ -527,6 +530,7 @@ event clicked;call super::clicked;//////////////////////////////////////////////
 //
 //	Version
 //	6.0   Initial version
+//	2025	The PDF dialog help (pfcdlg.pdf), shown by of_ShowDialogHelp
 //
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -552,6 +556,6 @@ event clicked;call super::clicked;//////////////////////////////////////////////
 //
 //////////////////////////////////////////////////////////////////////////////
 
-showHelp ("pfcdlg.chm", topic!, 400)
+of_ShowDialogHelp ("w_find")
 end event
 

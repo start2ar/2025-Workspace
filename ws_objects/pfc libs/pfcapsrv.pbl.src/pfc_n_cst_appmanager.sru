@@ -31,6 +31,8 @@ n_cst_error	inv_error
 n_cst_security	inv_security
 n_cst_apppreference	inv_apppref
 n_cst_mru		inv_mru
+n_cst_language	inv_language
+n_cst_help		inv_help
 
 Protected:
 boolean	ib_microhelp
@@ -43,6 +45,8 @@ string	is_version
 string	is_logo
 string	is_userid
 string	is_copyright
+// The folder of the theme applied with of_ApplyTheme
+string	is_themepath
 w_frame	iw_frame
 end variables
 
@@ -82,6 +86,10 @@ public function integer of_settrregistration (boolean ab_switch)
 public function integer of_setsecurity (boolean ab_switch)
 public function integer of_setapppreference (boolean ab_switch)
 public function integer of_setmru (boolean ab_switch)
+public function integer of_setlanguage (boolean ab_switch)
+public function integer of_sethelp (boolean ab_switch)
+public function integer of_applytheme (string as_themepath)
+public function string of_getthemepath ()
 end prototypes
 
 event pfc_open;//////////////////////////////////////////////////////////////////////////////
@@ -1524,7 +1532,9 @@ public function integer of_sethelpfile (string as_helpfile);////////////////////
 //	Access:  public
 //
 //	Arguments:
-//	as_helpfile:  Full pathname of the application's online help file.
+//	as_helpfile:  The application's online help file: a PDF file, or a compiled HTML Help
+//		(.chm) or WinHelp (.hlp) file.  Without a path, it is looked for in the current
+//		folder and then in the folder of the application (see n_cst_help).
 //
 //	Returns:  Integer
 //	 1 = success
@@ -1538,6 +1548,7 @@ public function integer of_sethelpfile (string as_helpfile);////////////////////
 //
 //	Version
 //	5.0   Initial version
+//	2025	A PDF help file
 //
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -1569,6 +1580,109 @@ End If
 
 is_helpfile = as_helpfile
 Return 1
+end function
+
+public function integer of_applytheme (string as_themepath);//////////////////////////////////////////////////////////////////////////////
+//
+//	Function:  of_ApplyTheme
+//
+//	Access:  public
+//
+//	Arguments:
+//	as_themepath:  The full path of the theme's folder, or "" to remove the theme
+//
+//	Returns:  Integer
+//	 1 = success
+//	-1 = error (ApplyTheme failed)
+//
+//	Description:  Applies a UI theme with ApplyTheme, remembers its folder
+//		(of_GetThemePath), and tells the frame's status bar, which UI themes don't
+//		style, to take its colors from the theme.  A theme applied with ApplyTheme
+//		directly reaches the status bar too, at its next refresh.
+//
+//////////////////////////////////////////////////////////////////////////////
+//
+//	Revision History
+//
+//	Version
+//	2025	Initial version
+//
+//////////////////////////////////////////////////////////////////////////////
+/*
+ * Open Source PowerBuilder Foundation Class Libraries
+ *
+ * Copyright (c) 2004-2017, All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted in accordance with the MIT License
+ *
+ * https://opensource.org/licenses/MIT
+ *
+ * ====================================================================
+ *
+ * This software consists of voluntary contributions made by many
+ * individuals and was originally based on software copyright (c) 
+ * 1996-2004 Sybase, Inc. http://www.sybase.com.  For more
+ * information on the Open Source PowerBuilder Foundation Class
+ * Libraries see https://github.com/OpenSourcePFCLibraries
+*/
+//
+//////////////////////////////////////////////////////////////////////////////
+
+If IsNull(as_themepath) Then Return -1
+If ApplyTheme(as_themepath) <> 1 Then Return -1
+is_themepath = as_themepath
+
+If IsValid(iw_frame) Then
+	If IsValid(iw_frame.inv_statusbar) Then iw_frame.inv_statusbar.of_RefreshThemeColors()
+End If
+Return 1
+end function
+
+public function string of_getthemepath ();//////////////////////////////////////////////////////////////////////////////
+//
+//	Function:  of_GetThemePath
+//
+//	Access:  public
+//
+//	Arguments:  None
+//
+//	Returns:  String
+//	The folder of the theme applied with of_ApplyTheme, or "" if none was
+//
+//	Description:  GetTheme gives only the name of the current theme; services that
+//		read the theme's files (the status bar) use this to find them.
+//
+//////////////////////////////////////////////////////////////////////////////
+//
+//	Revision History
+//
+//	Version
+//	2025	Initial version
+//
+//////////////////////////////////////////////////////////////////////////////
+/*
+ * Open Source PowerBuilder Foundation Class Libraries
+ *
+ * Copyright (c) 2004-2017, All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted in accordance with the MIT License
+ *
+ * https://opensource.org/licenses/MIT
+ *
+ * ====================================================================
+ *
+ * This software consists of voluntary contributions made by many
+ * individuals and was originally based on software copyright (c) 
+ * 1996-2004 Sybase, Inc. http://www.sybase.com.  For more
+ * information on the Open Source PowerBuilder Foundation Class
+ * Libraries see https://github.com/OpenSourcePFCLibraries
+*/
+//
+//////////////////////////////////////////////////////////////////////////////
+
+Return is_themepath
 end function
 
 public function integer of_setappkey (string as_appkey);//////////////////////////////////////////////////////////////////////////////
@@ -1918,7 +2032,9 @@ public function integer of_openidlogondlg (ref n_cst_openidattrib anv_openidattr
 //		Settings left empty in anv_openidattrib are read from the [OpenID] section of the
 //		application INI file: TokenEndpoint, UserInfoEndpoint, ClientID, Scope,
 //		Client (OAuthClient or HTTPClient), GroupsClaim (the claim with the groups, "groups"
-//		by default) and ShowResponses (1 shows the provider's responses).
+//		by default), ShowResponses (1 shows the provider's responses), and for the
+//		authorization code flow (Flow=code): AuthorizationEndpoint, RedirectPath ("/callback"
+//		by default) and Timeout (seconds to wait for the user, 300 by default).
 //		On success the user ID is set with of_SetUserID; the groups the provider reports are in
 //		anv_openidattrib.is_groups, for example to pass to inv_security.of_InitSecurity.
 //
@@ -1977,7 +2093,9 @@ public function integer of_openidlogondlg (ref n_cst_openidattrib anv_openidattr
 //		Settings left empty in anv_openidattrib are read from section as_inisection of
 //		as_inifile: TokenEndpoint, UserInfoEndpoint, ClientID, Scope,
 //		Client (OAuthClient or HTTPClient), GroupsClaim (the claim with the groups, "groups"
-//		by default) and ShowResponses (1 shows the provider's responses).
+//		by default), ShowResponses (1 shows the provider's responses), and for the
+//		authorization code flow (Flow=code): AuthorizationEndpoint, RedirectPath ("/callback"
+//		by default) and Timeout (seconds to wait for the user, 300 by default).
 //		On success the user ID is set with of_SetUserID; the groups the provider reports are in
 //		anv_openidattrib.is_groups, for example to pass to inv_security.of_InitSecurity.
 //
@@ -2019,6 +2137,10 @@ If Len (as_inifile) > 0 Then
 	anv_openidattrib.is_scope = ProfileString (as_inifile, as_inisection, "Scope", anv_openidattrib.is_scope)
 	anv_openidattrib.is_client = ProfileString (as_inifile, as_inisection, "Client", anv_openidattrib.is_client)
 	anv_openidattrib.is_groupsclaim = ProfileString (as_inifile, as_inisection, "GroupsClaim", anv_openidattrib.is_groupsclaim)
+	anv_openidattrib.is_flow = ProfileString (as_inifile, as_inisection, "Flow", anv_openidattrib.is_flow)
+	If Len (anv_openidattrib.is_authorizationendpoint) = 0 Then anv_openidattrib.is_authorizationendpoint = ProfileString (as_inifile, as_inisection, "AuthorizationEndpoint", "")
+	anv_openidattrib.is_redirectpath = ProfileString (as_inifile, as_inisection, "RedirectPath", anv_openidattrib.is_redirectpath)
+	anv_openidattrib.il_timeout = ProfileInt (as_inifile, as_inisection, "Timeout", anv_openidattrib.il_timeout)
 	If ProfileInt (as_inifile, as_inisection, "ShowResponses", 0) = 1 Then anv_openidattrib.ib_showresponses = True
 End If
 
@@ -2587,6 +2709,146 @@ END IF
 Return 0
 end function
 
+public function integer of_setlanguage (boolean ab_switch);//////////////////////////////////////////////////////////////////////////////
+//
+//	Function:  of_SetLanguage
+//
+//	Access:  public
+//
+//	Arguments:
+//	ab_switch	True to start the language service, False to stop it
+//
+//	Returns:  Integer
+//	 1 = successful operation
+//	 0 = no action necessary
+//	-1 = an error was encountered
+//
+//	Description:  Starts or stops the language service (inv_language), which shows PFC
+//		messages and the text of windows, menus and DataWindows in another language,
+//		from a language file: lang\pfc.lng in the application folder by default.
+//		Start it before opening windows.
+//
+//////////////////////////////////////////////////////////////////////////////
+//
+//	Revision History
+//
+//	Version
+//	2025	Initial version
+//
+//////////////////////////////////////////////////////////////////////////////
+//
+/*
+ * Open Source PowerBuilder Foundation Class Libraries
+ *
+ * Copyright (c) 2004-2017, All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted in accordance with the MIT License
+
+ *
+ * https://opensource.org/licenses/MIT
+ *
+ * ====================================================================
+ *
+ * This software consists of voluntary contributions made by many
+ * individuals and was originally based on software copyright (c)
+ * 1996-2004 Sybase, Inc. http://www.sybase.com.  For more
+ * information on the Open Source PowerBuilder Foundation Class
+ * Libraries see https://github.com/OpenSourcePFCLibraries
+*/
+//
+//////////////////////////////////////////////////////////////////////////////
+
+//Check arguments
+If IsNull(ab_switch) Then
+	Return -1
+End If
+
+IF ab_Switch THEN
+	IF IsNull(inv_language) Or Not IsValid (inv_language) THEN
+		inv_language = CREATE n_cst_language
+		Return 1
+	END IF
+ELSE
+	IF IsValid (inv_language) THEN
+		DESTROY inv_language
+		Return 1
+	END IF
+END IF
+
+Return 0
+end function
+
+public function integer of_sethelp (boolean ab_switch);//////////////////////////////////////////////////////////////////////////////
+//
+//	Function:  of_SetHelp
+//
+//	Access:  public
+//
+//	Arguments:
+//	ab_switch	True to start the help service, False to stop it
+//
+//	Returns:  Integer
+//	 1 = successful operation
+//	 0 = no action necessary
+//	-1 = an error was encountered
+//
+//	Description:  Starts or stops the help service (inv_help), which shows the help file
+//		(of_SetHelpFile) and the help of the PFC dialog boxes.  A PDF help file is shown in
+//		the application or in the user's PDF viewer: see inv_help.of_SetViewer.  Without
+//		the service, help is shown in the application.
+//
+//////////////////////////////////////////////////////////////////////////////
+//
+//	Revision History
+//
+//	Version
+//	2025	Initial version
+//
+//////////////////////////////////////////////////////////////////////////////
+//
+/*
+ * Open Source PowerBuilder Foundation Class Libraries
+ *
+ * Copyright (c) 2004-2017, All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted in accordance with the MIT License
+
+ *
+ * https://opensource.org/licenses/MIT
+ *
+ * ====================================================================
+ *
+ * This software consists of voluntary contributions made by many
+ * individuals and was originally based on software copyright (c) 
+ * 1996-2004 Sybase, Inc. http://www.sybase.com.  For more
+ * information on the Open Source PowerBuilder Foundation Class
+ * Libraries see https://github.com/OpenSourcePFCLibraries
+*/
+//
+//////////////////////////////////////////////////////////////////////////////
+
+//Check arguments
+If IsNull(ab_switch) Then
+	Return -1
+End If
+
+IF ab_Switch THEN
+	IF IsNull(inv_help) Or Not IsValid (inv_help) THEN
+		inv_help = CREATE n_cst_help
+		Return 1
+	END IF
+ELSE
+	IF IsValid (inv_help) THEN
+		DESTROY inv_help
+		Return 1
+	END IF
+END IF
+
+Return 0
+end function
+
 event destructor;//////////////////////////////////////////////////////////////////////////////
 //
 //	Event:  destructor
@@ -2601,6 +2863,7 @@ event destructor;///////////////////////////////////////////////////////////////
 //	5.0   Initial version
 //	5.0.02   Destroy security service
 // 6.0	Destroy app preference and MRU services
+//	2025	Destroy the language and help services
 //
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -2633,6 +2896,8 @@ of_SetError (false)
 of_SetSecurity (false)
 of_SetAppPreference (false)
 of_SetMRU (false)
+of_SetLanguage (false)
+of_SetHelp (false)
 end event
 
 event constructor;//////////////////////////////////////////////////////////////////////////////

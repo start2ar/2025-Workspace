@@ -19,6 +19,8 @@ type rb_4 from u_rb within w_sort
 end type
 type gb_1 from u_gb within w_sort
 end type
+type cbx_header from u_cbx within w_sort
+end type
 end forward
 
 global type w_sort from w_main
@@ -26,9 +28,9 @@ integer x = 421
 integer y = 68
 integer width = 2117
 integer height = 1636
-string title = "PFC Example - Sort Service Dialogs"
+string title = "PFC Example - Sort Service"
 boolean resizable = false
-long backcolor = 134217857
+long backcolor = 67108864
 dw_1 dw_1
 cb_sort cb_sort
 cb_close cb_close
@@ -36,6 +38,7 @@ rb_1 rb_1
 rb_3 rb_3
 rb_2 rb_2
 rb_4 rb_4
+cbx_header cbx_header
 gb_1 gb_1
 end type
 global w_sort w_sort
@@ -115,6 +118,7 @@ this.rb_3=create rb_3
 this.rb_2=create rb_2
 this.rb_4=create rb_4
 this.gb_1=create gb_1
+this.cbx_header=create cbx_header
 iCurrent=UpperBound(this.Control)
 this.Control[iCurrent+1]=this.dw_1
 this.Control[iCurrent+2]=this.cb_sort
@@ -123,7 +127,8 @@ this.Control[iCurrent+4]=this.rb_1
 this.Control[iCurrent+5]=this.rb_3
 this.Control[iCurrent+6]=this.rb_2
 this.Control[iCurrent+7]=this.rb_4
-this.Control[iCurrent+8]=this.gb_1
+this.Control[iCurrent+8]=this.cbx_header
+this.Control[iCurrent+9]=this.gb_1
 end on
 
 on w_sort.destroy
@@ -136,6 +141,7 @@ destroy(this.rb_3)
 destroy(this.rb_2)
 destroy(this.rb_4)
 destroy(this.gb_1)
+destroy(this.cbx_header)
 end on
 
 type dw_1 from u_dw within w_sort
@@ -253,6 +259,7 @@ integer x = 1321
 integer y = 1424
 integer taborder = 20
 string text = "&Set Sort"
+string facename = "Segoe UI"
 end type
 
 event clicked;//////////////////////////////////////////////////////////////////////////////
@@ -275,6 +282,7 @@ integer y = 1424
 integer taborder = 30
 string text = "Close"
 boolean cancel = true
+string facename = "Segoe UI"
 end type
 
 event clicked;//////////////////////////////////////////////////////////////////////////////
@@ -296,6 +304,7 @@ integer y = 112
 integer width = 731
 string text = "Drag/Drop &Columns Style"
 boolean checked = true
+string facename = "Segoe UI"
 end type
 
 event clicked;//////////////////////////////////////////////////////////////////////////////
@@ -317,6 +326,7 @@ integer y = 200
 integer width = 731
 boolean bringtotop = true
 string text = "&Drop-down List Box Style"
+string facename = "Segoe UI"
 end type
 
 event clicked;//////////////////////////////////////////////////////////////////////////////
@@ -338,6 +348,7 @@ integer y = 112
 integer width = 731
 boolean bringtotop = true
 string text = "Si&mple Single Column Style"
+string facename = "Segoe UI"
 end type
 
 event clicked;//////////////////////////////////////////////////////////////////////////////
@@ -359,6 +370,7 @@ integer y = 200
 integer width = 731
 boolean bringtotop = true
 string text = "&PowerBuilder Default Style"
+string facename = "Segoe UI"
 end type
 
 event clicked;//////////////////////////////////////////////////////////////////////////////
@@ -383,5 +395,30 @@ integer taborder = 10
 long textcolor = 33554687
 long backcolor = 82889382
 string text = "Select a Sort Dialog Style"
+string facename = "Segoe UI"
 end type
 
+
+type cbx_header from u_cbx within w_sort
+integer x = 27
+integer y = 1432
+integer width = 1257
+integer taborder = 15
+string text = "Sort by Clicking Column &Headers"
+string facename = "Segoe UI"
+end type
+
+event clicked;call super::clicked;//////////////////////////////////////////////////////////////////////////////
+//
+//	Event:
+//	clicked
+//
+//	Description:
+// Turns column header sorting on or off: clicking a column's header sorts by
+// that column, and clicking it again reverses the order.  The sort order
+// indicator (n_cst_dwsrv_sortdraw) shows the sort column and its direction.
+//
+//////////////////////////////////////////////////////////////////////////////
+
+dw_1.inv_sort.of_SetColumnHeader(this.checked)
+end event

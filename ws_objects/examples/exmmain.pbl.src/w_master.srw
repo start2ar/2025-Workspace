@@ -16,26 +16,24 @@ forward prototypes
 public function string of_getexampletitle (string as_classname)
 end prototypes
 
-public function string of_getexampletitle (string as_classname);integer	li_rc
-string	ls_title
-n_ds		lds_titles
+public function string of_getexampletitle (string as_classname);//////////////////////////////////////////////////////////////////////////////
+//
+//	Function:		of_GetExampleTitle
+//
+//	Access:			Public
+//
+//	Arguments:
+//	as_classname	The class name of an example's window
+//
+//	Returns:			String
+//						The example's title in the example catalog (exam.txt), "" if the
+//						catalog has no example with that window, or "!" if the catalog can't
+//						be read (the window then keeps its own title)
+//
+//////////////////////////////////////////////////////////////////////////////
+n_cst_examplecatalog	lnv_catalog
 
-lds_titles = create n_ds
-lds_titles.dataobject = "d_titles"
-If lds_titles.of_settransobject(SQLCA) <> 1 Then Return "!"
-
-li_rc = lds_titles.Retrieve(as_classname)
-
-If li_rc < 0 Then
-	of_Messagebox("w_master_examplestitle", "Database Error", "Cannot connect to database.", stopsign!, OK!, 1)
-	return '!'
-elseif li_rc = 0 Then
-	return ""
-Else
-	ls_title = lds_titles.GetItemString(1, "title")
-End If
-
-Return ls_title
+Return lnv_catalog.of_GetTitle(as_classname)
 end function
 
 on w_master.create
@@ -48,10 +46,12 @@ end on
 
 event open;call super::open;//////////////////////////////////////////////////////////////////////////////
 //	Event:			open
-//	Description:		Retrieves the example's title from the database.  Embedded SQL is
-// 						passed to the SQL Spy, if valid.
+//	Description:		Takes the example's title, and the number of its topic in the help
+// 						file, from the example catalog.
 //////////////////////////////////////////////////////////////////////////////
 string	ls_title
+long		ll_context
+n_cst_examplecatalog	lnv_catalog
 
 If this.ClassName ( ) = "w_examplemain" Then Return
 
@@ -61,6 +61,11 @@ If ( Pos ( this.title, "PFC Example" ) > 0 ) Then
 		this.title = ls_title
 	End If
 End If
+
+// F1 opens the example's topic in the help file (pfc_help)
+ll_context = lnv_catalog.of_GetHelpContext(this.ClassName())
+If ll_context > 0 Then ia_helptypeid = ll_context
+
 of_SetPreference ( True )
 
 If IsValid(inv_preference) Then
@@ -68,6 +73,10 @@ If IsValid(inv_preference) Then
 		inv_preference.of_Center ( ) 
 	End If
 End If
+end event
+
+event help;// F1: the help file's topic for the example
+this.event pfc_help()
 end event
 
 event activate;call super::activate;//////////////////////////////////////////////////////////////////////////////
